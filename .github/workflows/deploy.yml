@@ -4,13 +4,10 @@ on:
   push:
     branches: [main]
 
-# GitHub Pages 部署所需权限
+# 允许写入 gh-pages 分支
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# 只允许一个部署同时运行
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -18,9 +15,6 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -38,14 +32,8 @@ jobs:
         env:
           VITE_BASE: /DawnMoonNotes/
 
-      - name: 配置 GitHub Pages
-        uses: actions/configure-pages@v4
-
-      - name: 上传构建产物
-        uses: actions/upload-pages-artifact@v3
+      - name: 部署到 gh-pages 分支
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: dist
-
-      - name: 部署到 GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
