@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/* ===== 曦月笔记 — 深色科技风主题 ===== */
+
+@theme {
+  /* 主色调 — 紫色系 */
+  --color-primary: #7C3AED;
+  --color-primary-light: #A855F7;
+  --color-primary-dark: #5B21B6;
+  --color-primary-glow: #8B5CF6;
+
+  /* 背景色 */
+  --color-bg-page: #0F0F1A;
+  --color-bg-card: rgba(30, 27, 46, 0.8);
+  --color-bg-card-hover: rgba(40, 36, 58, 0.9);
+  --color-bg-input: #1A1725;
+
+  /* 文本色 */
+  --color-text-main: #E2E0E7;
+  --color-text-secondary: #9B97A8;
+  --color-text-disabled: #5C5866;
+
+  /* 功能色 */
+  --color-success: #22C55E;
+  --color-warning: #F97316;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+  --color-xizhu: #A855F7;
+
+  /* 字体 */
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+/* 全局基础样式 */
+html {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* 滚动条 — 深色主题 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.5);
+}
+
+/* 磨砂玻璃效果 */
+.glass {
+  background: rgba(30, 27, 46, 0.7);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+}
+
+/* 曦筑光晕 */
+.glow-xizhu {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3),
+              0 0 40px rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.5);
+}
+
+/* 按钮微光 */
+.btn-glow:hover {
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+}
+
+/* 页面过渡动效 */
+.page-enter {
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 加载脉冲 */
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+  }
+}
+
+/* ===== TipTap / ProseMirror 编辑器样式 ===== */
+
+.note-editor-wrapper .tiptap {
+  outline: none;
+  min-height: 300px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--color-text-main);
+}
+
+/* 段落间距 */
+.note-editor-wrapper .tiptap p {
+  margin: 0.25em 0;
+}
+
+/* 标题 */
+.note-editor-wrapper .tiptap h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.75em 0 0.25em;
+}
+
+.note-editor-wrapper .tiptap h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.6em 0 0.2em;
+}
+
+.note-editor-wrapper .tiptap h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.5em 0 0.15em;
+}
+
+/* 占位符 */
+.note-editor-wrapper .tiptap p.is-editor-empty:first-child::before {
+  color: var(--color-text-disabled);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  font-size: 14px;
+}
+
+/* 选中文字高亮 */
+.note-editor-wrapper .tiptap ::selection {
+  background: rgba(124, 58, 237, 0.35);
+}
+
+/* 链接 */
+.note-editor-wrapper .tiptap a {
+  color: var(--color-primary-light);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* 列表 */
+.note-editor-wrapper .tiptap ul,
+.note-editor-wrapper .tiptap ol {
+  padding-left: 1.5em;
+  margin: 0.25em 0;
+}
+
+.note-editor-wrapper .tiptap li {
+  margin: 0.15em 0;
+}
+
+.note-editor-wrapper .tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.note-editor-wrapper .tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.note-editor-wrapper .tiptap ul[data-type="taskList"] li label {
+  margin-top: 0.15em;
+}
+
+.note-editor-wrapper .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.note-editor-wrapper .tiptap ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  text-decoration: line-through;
+  color: var(--color-text-disabled);
+}
+
+/* 表格 */
+.note-editor-wrapper .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  font-size: 13px;
+}
+
+.note-editor-wrapper .tiptap table th {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--color-text-main);
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.note-editor-wrapper .tiptap table td {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 10px;
+  color: var(--color-text-secondary);
+}
+
+.note-editor-wrapper .tiptap table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* 图片 */
+.note-editor-wrapper .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5em 0;
+}
+
+/* 删除线 */
+.note-editor-wrapper .tiptap s {
+  color: var(--color-text-disabled);
+}
+
+/* 代码块 */
+.note-editor-wrapper .tiptap code {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--color-primary-light);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.note-editor-wrapper .tiptap pre {
+  background: var(--color-bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 0.5em 0;
+}
+
+.note-editor-wrapper .tiptap pre code {
+  background: none;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+
+/* 分割线 */
+.note-editor-wrapper .tiptap hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 1em 0;
+}
+
+/* 引用块 */
+.note-editor-wrapper .tiptap blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--color-text-secondary);
+}
+
+/* ===== 知识图谱 ===== */
+
+@keyframes nodeBreathe {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
