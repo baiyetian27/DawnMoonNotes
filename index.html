@@ -11,6 +11,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- GitHub Pages SPA 回退：恢复用户原本访问的路径 -->
+    <script>
+      (function() {
+        var redirect = sessionStorage.getItem('gh-redirect');
+        if (redirect) {
+          sessionStorage.removeItem('gh-redirect');
+          // 还原完整路径，让 React Router 接管后续路由
+          window.history.replaceState(null, '', '/DawnMoonNotes' + redirect);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
