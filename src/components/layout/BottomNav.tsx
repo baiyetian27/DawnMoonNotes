@@ -5,7 +5,6 @@ import {
   GitGraph,
   Calendar,
   Shuffle,
-  Settings,
 } from 'lucide-react'
 
 const navItems = [
@@ -14,7 +13,6 @@ const navItems = [
   { to: '/graph', icon: GitGraph, label: '图谱' },
   { to: '/calendar', icon: Calendar, label: '日历' },
   { to: '/random', icon: Shuffle, label: '随机' },
-  { to: '/settings', icon: Settings, label: '设置' },
 ]
 
 export default function BottomNav() {
