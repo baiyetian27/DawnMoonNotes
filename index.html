@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/DawnMoonNotes/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0F0F1A" />
+    <meta name="description" content="曦月笔记 - 深色科技风个人笔记应用" />
+    <link rel="apple-touch-icon" href="/DawnMoonNotes/pwa-192.svg" />
+    <title>曦月笔记</title>
+    <script type="module" crossorigin src="/DawnMoonNotes/assets/index-DmALxda2.js"></script>
+    <link rel="modulepreload" crossorigin href="/DawnMoonNotes/assets/rolldown-runtime-QTnfLwEv.js">
+    <link rel="stylesheet" crossorigin href="/DawnMoonNotes/assets/index-DVMkAskt.css">
+  <link rel="manifest" href="/DawnMoonNotes/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/DawnMoonNotes/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+    <!-- GitHub Pages SPA 回退：恢复用户原本访问的路径 -->
+    <script>
+      (function() {
+        var redirect = sessionStorage.getItem('gh-redirect');
+        if (redirect) {
+          sessionStorage.removeItem('gh-redirect');
+          // 还原完整路径，让 React Router 接管后续路由
+          window.history.replaceState(null, '', '/DawnMoonNotes' + redirect);
+        }
+      })();
+    </script>
+  </body>
+</html>
