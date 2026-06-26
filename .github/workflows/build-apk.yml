@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'twa/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+
+      - name: 安装 Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: 配置 Bubblewrap（跳过交互提示）
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo '{"jdkPath":"'"$JAVA_HOME"'","jdkInstalled":true}' > ~/.bubblewrap/config.json
+
+      - name: 构建 APK
+        run: |
+          cd twa
+          bubblewrap build
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiyue-notes-apk
+          path: twa/app/build/outputs/apk/release/*.apk
