@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.xiyue.notes",
+    "sha256_cert_fingerprints": ["34:45:F3:3A:CC:32:39:61:2F:1B:D9:6A:F6:B3:20:A1:20:E4:E2:F6:23:B3:A0:D5:19:80:EE:33:E0:BD:4E:C3"]
+  }
+}]
