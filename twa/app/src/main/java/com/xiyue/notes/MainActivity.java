@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -17,38 +18,45 @@ public class MainActivity extends Activity {
 
     private static final String APP_URL = "https://baiyetian27.github.io/DawnMoonNotes/";
     private WebView webView;
+    private int navBarInsetBottom = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Full-screen dark theme setup
+        // Edge-to-edge display with dark theme
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        );
 
-        // Set status bar color to match app theme
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+: proper edge-to-edge
+            getWindow().setDecorFitsSystemWindows(false);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // Android 5-10: draw behind system bars
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            getWindow().setStatusBarColor(Color.parseColor("#0F0F1A"));
-            getWindow().setNavigationBarColor(Color.parseColor("#0F0F1A"));
         }
 
-        // Hide navigation bar for immersive mode on newer devices
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            );
+        // Dark status bar and navigation bar
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(Color.parseColor("#0F0F1A"));
+            getWindow().setNavigationBarColor(Color.parseColor("#0F0F1A"));
         }
 
         // Create and configure WebView
         webView = new WebView(this);
         configureWebView(webView);
         setContentView(webView);
+
+        // Get navigation bar inset height for CSS injection
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webView.setOnApplyWindowInsetsListener((v, insets) -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    navBarInsetBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                } else {
+                    navBarInsetBottom = insets.getSystemWindowInsetBottom();
+                }
+                return insets;
+            });
+        }
 
         // Load the app
         webView.loadUrl(APP_URL);
@@ -61,7 +69,7 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);       // Required for IndexedDB
         settings.setDatabaseEnabled(true);          // Required for IndexedDB
-        settings.setAllowFileAccess(true);          // Allow file:// for WebView
+        settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
 
         // Caching and storage
@@ -81,7 +89,7 @@ public class MainActivity extends Activity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
 
-        // Enable safe browsing and geolocation
+        // Enable geolocation
         settings.setGeolocationEnabled(true);
         settings.setGeolocationDatabasePath(getDir("geolocation", MODE_PRIVATE).getAbsolutePath());
 
@@ -89,7 +97,6 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Keep all URLs within this WebView, never open external browser
                 view.loadUrl(url);
                 return true;
             }
@@ -97,14 +104,22 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Hide any potential white flash by ensuring background is dark
                 view.setBackgroundColor(Color.parseColor("#0F0F1A"));
+
+                // Inject navigation bar safe area as CSS variable for the PWA
+                if (navBarInsetBottom > 0) {
+                    float density = getResources().getDisplayMetrics().density;
+                    int navBarDp = Math.round(navBarInsetBottom / density);
+                    view.evaluateJavascript(
+                        "document.documentElement.style.setProperty('--nav-safe', '" + navBarDp + "px');",
+                        null
+                    );
+                }
             }
 
             @Override
             public void onReceivedError(WebView view, int errorCode,
                                         String description, String failingUrl) {
-                // Show a simple dark error page inline
                 String errorHtml = "<html><body style='background:#0F0F1A;color:#A0A0B0;"
                     + "font-family:sans-serif;display:flex;align-items:center;"
                     + "justify-content:center;height:100vh;margin:0;text-align:center;'>"
@@ -118,9 +133,7 @@ public class MainActivity extends Activity {
         // WebChromeClient — handle progress, title
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                // Progress could be used for a loading indicator if desired
-            }
+            public void onProgressChanged(WebView view, int newProgress) {}
 
             @Override
             public void onReceivedTitle(WebView view, String title) {
@@ -136,7 +149,6 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Handle back button: go back in WebView history if possible
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
@@ -149,14 +161,6 @@ public class MainActivity extends Activity {
         super.onResume();
         if (webView != null) {
             webView.onResume();
-        }
-        // Re-apply immersive mode after resume
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            );
         }
     }
 
@@ -171,7 +175,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (webView != null) {
-            // Clean up WebView to prevent memory leaks
             webView.loadUrl("about:blank");
             webView.clearHistory();
             webView.destroy();

@@ -70,6 +70,18 @@ body {
   background: rgba(124, 58, 237, 0.5);
 }
 
+/* ===== Safe Area 安全区域（适配全面屏 + 系统导航栏）===== */
+
+:root {
+  /* Android WebView 注入此变量；iOS 用 env(safe-area-inset-bottom) */
+  --nav-safe: 0px;
+}
+
+/* iOS 自动获取 safe-area-inset-bottom；Android 通过 --nav-safe 注入 */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--nav-safe));
+}
+
 /* 磨砂玻璃效果 */
 .glass {
   background: rgba(30, 27, 46, 0.7);

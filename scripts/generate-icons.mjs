@@ -15,7 +15,8 @@ const densities = [
   { name: 'xxxhdpi', size: 192 },
 ];
 
-// Clean geometric crescent moon SVG (no emoji, no text — renders reliably everywhere)
+// Clean geometric crescent moon SVG using evenOdd fill
+// (same approach as the Android vector drawable for consistency)
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -27,17 +28,21 @@ const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
       <stop offset="100%" stop-color="#A855F7"/>
     </linearGradient>
   </defs>
-  <!-- Rounded background -->
-  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
-  <!-- Crescent moon using two overlapping arcs -->
-  <path d="M 280 80
-           A 180 180 0 1 0 280 432
-           A 140 140 0 1 1 280 80 Z"
-        fill="url(#moon)"/>
-  <!-- Subtle star accents -->
-  <circle cx="160" cy="200" r="6" fill="#E2E0E7" opacity="0.6"/>
-  <circle cx="140" cy="300" r="4" fill="#E2E0E7" opacity="0.4"/>
-  <circle cx="180" cy="360" r="3" fill="#E2E0E7" opacity="0.3"/>
+  <!-- Rounded dark background -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <!-- Crescent moon: two circles with evenOdd fill
+       Outer: center(256,256) r=152   Inner: center(218,256) r=95
+       The overlap cancels out, leaving a right-side crescent -->
+  <path d="M 256 104
+           A 152 152 0 1 1 256 408
+           A 152 152 0 1 1 256 104
+           M 218 161
+           A 95 95 0 1 1 218 351
+           A 95 95 0 1 1 218 161"
+        fill="url(#moon)" fill-rule="evenodd"/>
+  <!-- Star accents -->
+  <circle cx="350" cy="170" r="17" fill="#E2E0E7" opacity="0.8"/>
+  <circle cx="330" cy="290" r="12" fill="#E2E0E7" opacity="0.5"/>
 </svg>`;
 
 // Master size for rendering

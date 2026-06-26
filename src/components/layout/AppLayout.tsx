@@ -70,7 +70,7 @@ export default function AppLayout() {
       </header>
 
       {/* 主内容区 — 无底部导航时不保留底部间距 */}
-      <main className={`flex-1 px-4 pt-4 max-w-2xl mx-auto w-full page-enter ${showBottomNav ? 'pb-20' : ''}`}>
+      <main className={`flex-1 px-4 pt-4 max-w-2xl mx-auto w-full page-enter ${showBottomNav ? 'pb-20 pb-safe' : ''}`}>
         <Outlet />
       </main>
 
