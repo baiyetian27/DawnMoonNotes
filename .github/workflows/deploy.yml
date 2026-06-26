@@ -4,11 +4,8 @@ on:
   push:
     branches: [main]
 
-# 需要写入 Pages 和 ID token 权限
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -34,14 +31,8 @@ jobs:
         env:
           VITE_BASE: /DawnMoonNotes/
 
-      - name: 配置 GitHub Pages
-        uses: actions/configure-pages@v4
-
-      - name: 上传构建产物
-        uses: actions/upload-pages-artifact@v3
+      - name: 部署到 gh-pages 分支
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./dist
-
-      - name: 部署到 GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
