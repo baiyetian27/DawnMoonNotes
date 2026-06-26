@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android SDK & build artifacts
+android-sdk/
+android-sdk.zip
+twa/.gradle/
+twa/app/build/
+twa/gradle-dist/
+twa/gradle.zip
+twa/local.properties
