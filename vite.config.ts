@@ -13,7 +13,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: [`${base}favicon.svg`],
       manifest: {
         name: '曦月笔记',
         short_name: '曦月',
@@ -22,10 +22,11 @@ export default defineConfig({
         background_color: '#0F0F1A',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
-          { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+          { src: `${base}pwa-192.svg`, sizes: '192x192', type: 'image/svg+xml' },
+          { src: `${base}pwa-512.svg`, sizes: '512x512', type: 'image/svg+xml' },
         ],
       },
       workbox: {
