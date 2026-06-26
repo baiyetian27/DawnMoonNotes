@@ -6,7 +6,7 @@ on:
     paths:
       - 'twa/**'
       - '.github/workflows/build-apk.yml'
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,26 +24,39 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-34 build-tools;34.0.0'
+      - name: 配置 Android SDK（Ubuntu 预装）
+        run: |
+          # 接受 Android SDK 许可协议
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          # 安装构建所需包
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: 安装 Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: 配置 Bubblewrap（跳过交互提示）
+      - name: 配置 Bubblewrap
         run: |
           mkdir -p ~/.bubblewrap
-          echo '{"jdkPath":"'"$JAVA_HOME"'","jdkInstalled":true}' > ~/.bubblewrap/config.json
+          cat > ~/.bubblewrap/config.json << 'ENDCONFIG'
+          {
+            "jdkPath": "",
+            "jdkInstalled": true,
+            "androidSdkPath": "",
+            "androidSdkInstalled": true
+          }
+          ENDCONFIG
+          # 用实际路径替换空值
+          sed -i "s|\"jdkPath\": \"\"|\"jdkPath\": \"$JAVA_HOME\"|" ~/.bubblewrap/config.json
+          sed -i "s|\"androidSdkPath\": \"\"|\"androidSdkPath\": \"$ANDROID_HOME\"|" ~/.bubblewrap/config.json
 
       - name: 构建 APK
         run: |
           cd twa
-          bubblewrap build
+          echo -e "n\n$ANDROID_HOME\n" | script -q -c "bubblewrap build" /dev/null
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: xiyue-notes-apk
           path: twa/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
