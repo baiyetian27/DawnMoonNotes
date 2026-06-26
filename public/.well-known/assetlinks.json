@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.xiyue.notes",
-    "sha256_cert_fingerprints": ["34:45:F3:3A:CC:32:39:61:2F:1B:D9:6A:F6:B3:20:A1:20:E4:E2:F6:23:B3:A0:D5:19:80:EE:33:E0:BD:4E:C3"]
+    "sha256_cert_fingerprints": ["05:9C:EC:BA:A1:E4:F4:31:2B:30:34:04:AC:C0:40:BB:61:98:26:B1:DC:E5:A6:9D:7E:89:86:C9:FD:49:37:CF"]
   }
 }]
