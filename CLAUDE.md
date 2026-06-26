@@ -1,7 +1,9 @@
 # 曦月笔记 — AI 开发指引
 
 ## 项目概述
-「曦月笔记」是一款面向个人用户的笔记应用，支持安卓手机（PWA）和网页双端使用，数据存储在设备本地（IndexedDB），无需登录、无需联网。UI 风格为深色科技风 + 紫色主色调。
+「曦月笔记」是一款面向个人用户的笔记应用，支持安卓手机（独立 APK + PWA）和网页多端使用，数据存储在设备本地（IndexedDB），无需登录、无需联网。UI 风格为深色科技风 + 紫色主色调。
+
+Android 端使用系统内置 WebView 加载 PWA，无需安装 Chrome 或任何第三方浏览器。
 
 ---
 
@@ -75,6 +77,56 @@ npm run lint         # 代码检查（如果配置了）
 
 ---
 
+## Android 项目
+
+### 标准文件路径
+
+| 文件 | 用途 | 何时查阅 |
+|------|------|----------|
+| `twa/app/src/main/java/com/xiyue/notes/MainActivity.java` | WebView 主 Activity | 修改 Android 端行为时 |
+| `twa/app/src/main/AndroidManifest.xml` | 应用清单（权限、主题、Intent） | 修改权限或 Activity 配置时 |
+| `twa/app/build.gradle` | App 模块构建配置 | 修改依赖或 SDK 版本时 |
+| `twa/build.gradle` | 项目级 Gradle 配置 | 修改 Gradle 插件版本时 |
+| `twa/settings.gradle` | Gradle 项目设置 | 修改模块结构时 |
+| `twa/release.keystore` | APK 签名密钥 | 签名 APK 时 |
+| `twa/gradle-dist/` | Gradle 8.2 分发版 | 已内置，无需额外安装 |
+| `public/.well-known/assetlinks.json` | TWA 验证文件（WebView 方案不需要） | 仅参考 |
+| `.github/workflows/deploy.yml` | 前端部署到 GitHub Pages | 修改部署流程时 |
+
+### Android 构建命令
+
+```bash
+# 设置 Java 环境（Windows Git Bash）
+export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.11.10-hotspot"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# 构建 release APK
+cd twa
+./gradle-dist/gradle-8.2/bin/gradle assembleRelease
+
+# APK 输出路径
+# twa/app/build/outputs/apk/release/app-release.apk
+```
+
+### 签名信息
+
+| 项目 | 值 |
+|------|-----|
+| Keystore | `twa/release.keystore` |
+| 密码 | `xiyuenotes` |
+| 别名 | `xiuye` |
+| 包名 | `com.xiyue.notes` |
+| 密钥算法 | RSA 2048 |
+
+### Android 架构说明
+
+- **方案**：原生 Activity + 系统 WebView，非 TWA
+- **优势**：不依赖 Chrome/Edge 等第三方浏览器，WebView 是 Android 系统内置组件
+- **数据**：WebView 内 IndexedDB 由应用沙箱隔离，卸载 App 时自动清除
+- **离线**：由 PWA Service Worker 提供离线缓存能力
+
+---
+
 ## 技术栈速查
 
 - **前端框架**：React 19 + TypeScript
@@ -87,4 +139,5 @@ npm run lint         # 代码检查（如果配置了）
 - **截图分享**：html2canvas
 - **图标**：Lucide Icons
 - **PWA**：vite-plugin-pwa
-- **部署**：Vercel
+- **Android**：原生 WebView + Gradle 8.2
+- **部署**：GitHub Pages
