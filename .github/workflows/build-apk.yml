@@ -1,12 +1,7 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'twa/**'
-      - '.github/workflows/build-apk.yml'
-  workflow_dispatch:
+  workflow_dispatch:  # 改为手动触发，方便调试
 
 permissions:
   contents: write
@@ -24,35 +19,35 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: 配置 Android SDK（Ubuntu 预装）
+      - name: 准备 Android SDK
         run: |
-          # 接受 Android SDK 许可协议
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          # 安装构建所需包
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          sudo apt-get install -y expect
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
 
       - name: 安装 Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: 配置 Bubblewrap
-        run: |
-          mkdir -p ~/.bubblewrap
-          cat > ~/.bubblewrap/config.json << 'ENDCONFIG'
-          {
-            "jdkPath": "",
-            "jdkInstalled": true,
-            "androidSdkPath": "",
-            "androidSdkInstalled": true
-          }
-          ENDCONFIG
-          # 用实际路径替换空值
-          sed -i "s|\"jdkPath\": \"\"|\"jdkPath\": \"$JAVA_HOME\"|" ~/.bubblewrap/config.json
-          sed -i "s|\"androidSdkPath\": \"\"|\"androidSdkPath\": \"$ANDROID_HOME\"|" ~/.bubblewrap/config.json
-
-      - name: 构建 APK
+      - name: 构建 APK（非交互模式）
         run: |
           cd twa
-          echo -e "n\n$ANDROID_HOME\n" | script -q -c "bubblewrap build" /dev/null
+          # 创建临时 expect 脚本绕过交互提示
+          cat > /tmp/build.exp << 'EXPECTEOF'
+          #!/usr/bin/expect -f
+          set timeout 300
+          spawn bubblewrap build
+          expect {
+            "install the JDK" { send "n\r"; exp_continue }
+            "install the Android SDK" { send "n\r"; exp_continue }
+            "Path to your existing" { send "$env(ANDROID_HOME)\r"; exp_continue }
+            eof
+          }
+          catch wait result
+          exit [lindex $result 3]
+          EXPECTEOF
+          chmod +x /tmp/build.exp
+          /tmp/build.exp
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
