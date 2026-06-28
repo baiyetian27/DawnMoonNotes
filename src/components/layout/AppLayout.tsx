@@ -11,7 +11,10 @@ export default function AppLayout() {
   const showBottomNav = !isSettingsPage
 
   return (
-    <div className="min-h-screen min-h-dvh bg-bg-page text-text-main flex flex-col">
+    <div
+      className="min-h-screen min-h-dvh bg-bg-page text-text-main flex flex-col"
+      style={{ paddingTop: 'var(--status-safe, 0px)' }}
+    >
       {/* 顶部栏 */}
       <header className="sticky top-0 z-40 glass border-b border-primary-light/10">
         <div className="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">

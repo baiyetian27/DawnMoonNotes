@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:apk": "vite build --base=./ && node scripts/copy-dist-to-apk.mjs",
+    "build:apk": "cross-env VITE_APK=true vite build --base=/ && node scripts/copy-dist-to-apk.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -48,6 +48,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "cross-env": "^10.1.0",
     "oxlint": "^1.69.0",
     "sharp": "^0.35.2",
     "typescript": "~6.0.2",

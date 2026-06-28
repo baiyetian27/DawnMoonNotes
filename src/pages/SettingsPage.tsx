@@ -329,72 +329,74 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── 存储状态 ──────────────────────────── */}
-      <section className="glass rounded-2xl p-5">
-        <h2 className="text-sm font-medium text-text-main mb-3 flex items-center gap-2">
-          <HardDrive size={18} className="text-primary-light" />
-          存储状态
-        </h2>
+      {/* ── 存储状态（仅 Web 端显示，APK file:// 协议不支持 Storage API）── */}
+      {import.meta.env.VITE_APK !== 'true' && (
+        <section className="glass rounded-2xl p-5">
+          <h2 className="text-sm font-medium text-text-main mb-3 flex items-center gap-2">
+            <HardDrive size={18} className="text-primary-light" />
+            存储状态
+          </h2>
 
-        <div className="flex items-center gap-3 mb-3">
-          {storageInfo.isPersisted === null ? (
-            <Loader2 size={16} className="text-text-disabled animate-spin" />
-          ) : storageInfo.isPersisted ? (
-            <div className="flex items-center gap-2 text-success">
-              <ShieldCheck size={16} />
-              <span className="text-xs font-medium">数据已受保护</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-warning">
-              <ShieldOff size={16} />
-              <span className="text-xs font-medium">数据未受保护</span>
-            </div>
-          )}
-        </div>
-
-        {storageInfo.isPersisted === false && (
-          <div className="mb-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
-            <p className="text-xs text-text-secondary leading-relaxed">
-              ⚠️ 当前存储空间可能被浏览器在存储压力大时自动清理。建议：
-            </p>
-            <ul className="text-xs text-text-secondary mt-1.5 space-y-1 list-disc list-inside mb-3">
-              <li>将本应用<strong className="text-text-main">安装到桌面</strong>（PWA），安装后浏览器会自动保护数据</li>
-              <li>点击下方<strong className="text-text-main">请求保护</strong>按钮主动申请</li>
-              <li>定期使用下方<strong className="text-text-main">导出功能</strong>备份数据</li>
-            </ul>
-            <button
-              onClick={async () => {
-                setPersistMsg(null)
-                const ok = await requestPersist()
-                setPersistMsg(ok ? '存储保护已激活 ✓' : '请求被拒绝，请尝试安装 PWA 后重试')
-              }}
-              disabled={storageLoading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg
-                bg-primary/20 border border-primary/30 text-primary-light text-xs
-                font-medium hover:bg-primary/30 active:scale-[0.98]
-                transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {storageLoading ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <ShieldCheck size={14} />
-              )}
-              {storageLoading ? '请求中...' : '请求存储保护'}
-            </button>
-            {persistMsg && (
-              <p className={`text-xs mt-2 ${persistMsg.includes('✓') ? 'text-success' : 'text-warning'}`}>
-                {persistMsg}
-              </p>
+          <div className="flex items-center gap-3 mb-3">
+            {storageInfo.isPersisted === null ? (
+              <Loader2 size={16} className="text-text-disabled animate-spin" />
+            ) : storageInfo.isPersisted ? (
+              <div className="flex items-center gap-2 text-success">
+                <ShieldCheck size={16} />
+                <span className="text-xs font-medium">数据已受保护</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-warning">
+                <ShieldOff size={16} />
+                <span className="text-xs font-medium">数据未受保护</span>
+              </div>
             )}
           </div>
-        )}
 
-        {storageInfo.quota > 0 && (
-          <div className="text-xs text-text-disabled">
-            已用 {formatBytes(storageInfo.usage)} / 配额 {formatBytes(storageInfo.quota)}
-          </div>
-        )}
-      </section>
+          {storageInfo.isPersisted === false && (
+            <div className="mb-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
+              <p className="text-xs text-text-secondary leading-relaxed">
+                ⚠️ 当前存储空间可能被浏览器在存储压力大时自动清理。建议：
+              </p>
+              <ul className="text-xs text-text-secondary mt-1.5 space-y-1 list-disc list-inside mb-3">
+                <li>将本应用<strong className="text-text-main">安装到桌面</strong>（PWA），安装后浏览器会自动保护数据</li>
+                <li>点击下方<strong className="text-text-main">请求保护</strong>按钮主动申请</li>
+                <li>定期使用下方<strong className="text-text-main">导出功能</strong>备份数据</li>
+              </ul>
+              <button
+                onClick={async () => {
+                  setPersistMsg(null)
+                  const ok = await requestPersist()
+                  setPersistMsg(ok ? '存储保护已激活 ✓' : '请求被拒绝，请尝试安装 PWA 后重试')
+                }}
+                disabled={storageLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg
+                  bg-primary/20 border border-primary/30 text-primary-light text-xs
+                  font-medium hover:bg-primary/30 active:scale-[0.98]
+                  transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {storageLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ShieldCheck size={14} />
+                )}
+                {storageLoading ? '请求中...' : '请求存储保护'}
+              </button>
+              {persistMsg && (
+                <p className={`text-xs mt-2 ${persistMsg.includes('✓') ? 'text-success' : 'text-warning'}`}>
+                  {persistMsg}
+                </p>
+              )}
+            </div>
+          )}
+
+          {storageInfo.quota > 0 && (
+            <div className="text-xs text-text-disabled">
+              已用 {formatBytes(storageInfo.usage)} / 配额 {formatBytes(storageInfo.quota)}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── 关于 ──────────────────────────────── */}
       <section className="glass rounded-2xl p-5">

@@ -37,8 +37,6 @@ android {
 }
 
 dependencies {
-    // AndroidX Activity for ActivityResultLauncher (file picker)
-    implementation('androidx.activity:activity:1.8.0') {
-        exclude group: 'org.jetbrains.kotlin'
-    }
+    // DIAGNOSIS: Zero external dependencies
+    // Using plain android.app.Activity, no AndroidX at all
 }
