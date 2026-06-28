@@ -1,6 +1,5 @@
 import sharp from 'sharp';
-import { mkdirSync } from 'fs';
-import { readFileSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,34 +15,25 @@ const densities = [
   { name: 'xxxhdpi', size: 192 },
 ];
 
-// Read the source SVG (pwa-512.svg — high-res version with moon emoji + text)
-const svgPath = join(__dirname, '..', 'public', 'pwa-512.svg');
-const iconSvg = readFileSync(svgPath, 'utf-8');
-
-// Master render size
-const masterSize = 512;
+// Read the user's moon.png icon
+const pngPath = join(__dirname, '..', 'public', 'moon.png');
+const sourcePng = readFileSync(pngPath);
 
 try {
-  // Render the SVG to a master PNG
-  const masterPng = await sharp(Buffer.from(iconSvg), { density: 72 })
-    .resize(masterSize, masterSize)
-    .png()
-    .toBuffer();
-
-  // Generate each density
+  // Generate each density by resizing the source PNG
   for (const { name, size } of densities) {
     const dir = join(resDir, `mipmap-${name}`);
     mkdirSync(dir, { recursive: true });
 
-    await sharp(masterPng)
-      .resize(size, size)
+    await sharp(sourcePng)
+      .resize(size, size, { fit: 'cover' })
       .png()
       .toFile(join(dir, 'ic_launcher.png'));
 
     console.log(`✅ ${name} (${size}×${size}) → mipmap-${name}/ic_launcher.png`);
   }
 
-  console.log('\n🎉 All launcher icons generated from pwa-512.svg!');
+  console.log('\n🎉 All launcher icons generated from moon.png!');
 } catch (err) {
   console.error('❌ Error generating icons:', err);
   process.exit(1);

@@ -47,13 +47,13 @@ public class MainActivity extends ComponentActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        // Register file picker BEFORE creating WebView (Bridge may need it)
+        // MUST be called before super.onCreate() for ComponentActivity
         pickFileLauncher = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(),
             this::onFilePicked
         );
+
+        super.onCreate(savedInstanceState);
 
         // Edge-to-edge display with dark theme
         requestWindowFeature(Window.FEATURE_NO_TITLE);
