@@ -41,8 +41,4 @@ dependencies {
     implementation('androidx.activity:activity:1.8.0') {
         exclude group: 'org.jetbrains.kotlin'
     }
-    // AndroidX WebKit for WebViewAssetLoader (local asset serving via https://)
-    implementation('androidx.webkit:webkit:1.9.0') {
-        exclude group: 'org.jetbrains.kotlin'
-    }
 }

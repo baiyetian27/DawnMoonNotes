@@ -3,14 +3,12 @@ package com.xiyue.notes;
 import androidx.activity.ComponentActivity;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -26,29 +24,22 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.webkit.WebViewAssetLoader;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends ComponentActivity {
 
-    private static final String TAG = "XiyueNotes";
-
-    // WebViewAssetLoader serves local assets under this https:// domain,
-    // preserving secure context for IndexedDB, StorageManager, and Service Worker APIs.
-    private static final String LOCAL_DOMAIN = "appassets.androidplatform.net";
-    private static final String APP_URL = "https://" + LOCAL_DOMAIN + "/index.html";
+    // Load PWA from APK assets — fully offline, no network needed.
+    // Using file:///android_asset/ is the simplest and most compatible approach
+    // for bundling web content inside an Android app.
+    private static final String APP_URL = "file:///android_asset/www/index.html";
 
     private WebView webView;
-    private WebViewAssetLoader assetLoader;
     private int navBarInsetBottom = 0;
 
     // File picker launcher for importing backup
@@ -64,100 +55,40 @@ public class MainActivity extends ComponentActivity {
 
         super.onCreate(savedInstanceState);
 
-        try {
-            // Edge-to-edge display with dark theme
-            requestWindowFeature(Window.FEATURE_NO_TITLE);
+        // Edge-to-edge display with dark theme
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                getWindow().setDecorFitsSystemWindows(false);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            }
-
-            // Dark status bar and navigation bar
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                getWindow().setStatusBarColor(Color.parseColor("#0F0F1A"));
-                getWindow().setNavigationBarColor(Color.parseColor("#0F0F1A"));
-            }
-
-            // Build WebViewAssetLoader to serve APK-bundled assets over https://
-            // - /assets/*  → static files (JS, CSS) from assets/www/assets/
-            // - /*          → root files + SPA fallback: tries exact file, falls back to index.html
-            assetLoader = new WebViewAssetLoader.Builder()
-                .addPathHandler("/", path -> {
-                    // Serves ALL files from assets/www/
-                    String filePath = (path == null || path.isEmpty() || path.equals("/"))
-                        ? "www/index.html"
-                        : "www/" + path;
-
-                    // Try to serve the exact file
-                    try {
-                        InputStream is = getAssets().open(filePath);
-                        String mime = URLConnection.guessContentTypeFromName(filePath);
-                        if (mime == null) mime = "application/octet-stream";
-                        String encoding = isTextMime(mime) ? "UTF-8" : null;
-                        return new WebResourceResponse(mime, encoding, is);
-                    } catch (IOException e) {
-                        // SPA fallback: client-side routes like /settings or /note/abc
-                        // don't exist as files — return index.html and let React Router handle it
-                        try {
-                            InputStream is = getAssets().open("www/index.html");
-                            return new WebResourceResponse("text/html", "UTF-8", is);
-                        } catch (IOException ex) {
-                            return new WebResourceResponse("text/plain", "UTF-8",
-                                404, "Not Found", null,
-                                new ByteArrayInputStream("404 Not Found".getBytes(StandardCharsets.UTF_8)));
-                        }
-                    }
-                })
-                .build();
-
-            // Create and configure WebView
-            webView = new WebView(this);
-            configureWebView(webView);
-            setContentView(webView);
-
-            // Get navigation bar inset height for CSS injection
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                webView.setOnApplyWindowInsetsListener((v, insets) -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        navBarInsetBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
-                    } else {
-                        navBarInsetBottom = insets.getSystemWindowInsetBottom();
-                    }
-                    return insets;
-                });
-            }
-
-            // Load the app from local assets (no network needed)
-            webView.loadUrl(APP_URL);
-
-        } catch (Exception e) {
-            // If WebViewAssetLoader setup fails, show a crash-safe error page
-            Log.e(TAG, "Failed to initialize WebViewAssetLoader", e);
-            webView = new WebView(this);
-            webView.setBackgroundColor(Color.parseColor("#0F0F1A"));
-            String fallbackHtml = "<html><body style='background:#0F0F1A;color:#A0A0B0;"
-                + "font-family:sans-serif;display:flex;align-items:center;"
-                + "justify-content:center;height:100vh;margin:0;text-align:center;'>"
-                + "<div><p style='font-size:18px;'>应用初始化失败</p>"
-                + "<p style='font-size:14px;'>初始化错误: " + e.getMessage() + "</p></div>"
-                + "</body></html>";
-            webView.loadDataWithBaseURL(null, fallbackHtml, "text/html", "UTF-8", null);
-            setContentView(webView);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         }
-    }
 
-    /** Returns true for text-based MIME types that should declare charset=UTF-8. */
-    private static boolean isTextMime(String mime) {
-        return mime != null && (
-            mime.startsWith("text/") ||
-            mime.equals("application/javascript") ||
-            mime.equals("application/json") ||
-            mime.equals("application/xml") ||
-            mime.equals("image/svg+xml") ||
-            mime.equals("application/manifest+json")
-        );
+        // Dark status bar and navigation bar
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(Color.parseColor("#0F0F1A"));
+            getWindow().setNavigationBarColor(Color.parseColor("#0F0F1A"));
+        }
+
+        // Create and configure WebView
+        webView = new WebView(this);
+        configureWebView(webView);
+        setContentView(webView);
+
+        // Get navigation bar inset height for CSS injection
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webView.setOnApplyWindowInsetsListener((v, insets) -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    navBarInsetBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                } else {
+                    navBarInsetBottom = insets.getSystemWindowInsetBottom();
+                }
+                return insets;
+            });
+        }
+
+        // Load the app from local assets (no network needed)
+        webView.loadUrl(APP_URL);
     }
 
     private void configureWebView(WebView webView) {
@@ -170,7 +101,7 @@ public class MainActivity extends ComponentActivity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
 
-        // Caching and storage
+        // Caching
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         // Viewport
@@ -187,48 +118,14 @@ public class MainActivity extends ComponentActivity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
 
-        // Enable geolocation
-        settings.setGeolocationEnabled(true);
-        settings.setGeolocationDatabasePath(getDir("geolocation", MODE_PRIVATE).getAbsolutePath());
-
         // Register JavaScript bridge
         webView.addJavascriptInterface(new Bridge(this), "Android");
 
-        // WebViewClient — override BOTH old and new API methods for compatibility
+        // WebViewClient
         webView.setWebViewClient(new WebViewClient() {
-
-            // -- Resource interception (API 21+) ----------------------
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view,
-                                                              WebResourceRequest request) {
-                if (assetLoader != null) {
-                    WebResourceResponse response = assetLoader.shouldInterceptRequest(request.getUrl());
-                    if (response != null) return response;
-                }
-                return super.shouldInterceptRequest(view, request);
-            }
-
-            // -- Resource interception (deprecated, API < 21 compat) --
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
-                if (assetLoader != null) {
-                    WebResourceResponse response = assetLoader.shouldInterceptRequest(Uri.parse(url));
-                    if (response != null) return response;
-                }
-                return super.shouldInterceptRequest(view, url);
-            }
-
-            // -- URL loading (API 21+) ---------------------------------
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view,
-                                                    WebResourceRequest request) {
-                view.loadUrl(request.getUrl().toString());
-                return true;
-            }
-
-            // -- URL loading (deprecated, API < 21 compat) -------------
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // Keep navigation inside the WebView
                 view.loadUrl(url);
                 return true;
             }
@@ -251,12 +148,11 @@ public class MainActivity extends ComponentActivity {
             @Override
             public void onReceivedError(WebView view, int errorCode,
                                         String description, String failingUrl) {
-                Log.e(TAG, "WebView error " + errorCode + ": " + description + " — " + failingUrl);
                 String errorHtml = "<html><body style='background:#0F0F1A;color:#A0A0B0;"
                     + "font-family:sans-serif;display:flex;align-items:center;"
                     + "justify-content:center;height:100vh;margin:0;text-align:center;'>"
                     + "<div><p style='font-size:18px;'>加载失败</p>"
-                    + "<p style='font-size:14px;'>" + description + "</p></div>"
+                    + "<p style='font-size:14px;'>请检查网络连接后重试</p></div>"
                     + "</body></html>";
                 view.loadDataWithBaseURL(null, errorHtml, "text/html", "UTF-8", null);
             }
@@ -413,7 +309,7 @@ public class MainActivity extends ComponentActivity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView != null && webView.canGoBack()) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
         }
