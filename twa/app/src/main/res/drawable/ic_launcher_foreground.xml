@@ -6,25 +6,27 @@
     android:viewportHeight="108">
 
     <!--
-    Crescent moon using evenOdd fill:
-    Outer circle (r=32, center x=54) + inner circle (r=20, center x=46)
-    The overlap cancels out, leaving a right-side crescent.
+    Yellow crescent moon ("cheese" shape) using intersecting arcs:
+    Two intersecting circles — the path traces the right side of the outer circle
+    and returns along the right side of the inner circle, forming pointed tips.
+    No evenOdd needed — works on all Android versions.
+    Outer: center(54,54) r=31   Inner: center(38,54) r=23
+    Intersection points: (32.5, 31.67) and (32.5, 76.33)
     -->
     <path
-        android:fillType="evenOdd"
-        android:pathData="M54,22 A32,32 0 1,1 54,86 A32,32 0 1,1 54,22
-                         M46,34 A20,20 0 1,1 46,74 A20,20 0 1,1 46,34"
-        android:fillColor="#C084FC"/>
+        android:pathData="M32.5,31.67
+                         A31,31 0 1,1 32.5,76.33
+                         A23,23 0 1,0 32.5,31.67
+                         Z"
+        android:fillColor="#F5C842"/>
 
-    <!-- Small star accent 1 (upper right) -->
+    <!-- Four-pointed star 1 (upper left) -->
     <path
-        android:pathData="M74,36 m-3.5,0 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0"
-        android:fillColor="#E2E0E7"
-        android:fillAlpha="0.85"/>
+        android:pathData="M22,23 L23.5,26.5 L27,28 L23.5,29.5 L22,33 L20.5,29.5 L17,28 L20.5,26.5 Z"
+        android:fillColor="#F5C842"/>
 
-    <!-- Small star accent 2 (mid right) -->
+    <!-- Four-pointed star 2 (lower left, slightly smaller) -->
     <path
-        android:pathData="M70,62 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0"
-        android:fillColor="#E2E0E7"
-        android:fillAlpha="0.55"/>
+        android:pathData="M22,74 L23.2,76.8 L26,78 L23.2,79.2 L22,82 L20.8,79.2 L18,78 L20.8,76.8 Z"
+        android:fillColor="#F5C842"/>
 </vector>

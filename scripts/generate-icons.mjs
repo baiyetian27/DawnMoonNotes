@@ -1,5 +1,6 @@
 import sharp from 'sharp';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,37 +16,11 @@ const densities = [
   { name: 'xxxhdpi', size: 192 },
 ];
 
-// Clean geometric crescent moon SVG using evenOdd fill
-// (same approach as the Android vector drawable for consistency)
-const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0F0F1A"/>
-      <stop offset="100%" stop-color="#1A1725"/>
-    </linearGradient>
-    <linearGradient id="moon" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#C084FC"/>
-      <stop offset="100%" stop-color="#A855F7"/>
-    </linearGradient>
-  </defs>
-  <!-- Rounded dark background -->
-  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
-  <!-- Crescent moon: two circles with evenOdd fill
-       Outer: center(256,256) r=152   Inner: center(218,256) r=95
-       The overlap cancels out, leaving a right-side crescent -->
-  <path d="M 256 104
-           A 152 152 0 1 1 256 408
-           A 152 152 0 1 1 256 104
-           M 218 161
-           A 95 95 0 1 1 218 351
-           A 95 95 0 1 1 218 161"
-        fill="url(#moon)" fill-rule="evenodd"/>
-  <!-- Star accents -->
-  <circle cx="350" cy="170" r="17" fill="#E2E0E7" opacity="0.8"/>
-  <circle cx="330" cy="290" r="12" fill="#E2E0E7" opacity="0.5"/>
-</svg>`;
+// Read the source SVG (pwa-512.svg — high-res version with moon emoji + text)
+const svgPath = join(__dirname, '..', 'public', 'pwa-512.svg');
+const iconSvg = readFileSync(svgPath, 'utf-8');
 
-// Master size for rendering
+// Master render size
 const masterSize = 512;
 
 try {
@@ -68,7 +43,7 @@ try {
     console.log(`✅ ${name} (${size}×${size}) → mipmap-${name}/ic_launcher.png`);
   }
 
-  console.log('\n🎉 All launcher icons generated!');
+  console.log('\n🎉 All launcher icons generated from pwa-512.svg!');
 } catch (err) {
   console.error('❌ Error generating icons:', err);
   process.exit(1);

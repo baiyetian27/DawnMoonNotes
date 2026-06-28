@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Download,
   Upload,
@@ -10,8 +10,10 @@ import {
   ShieldCheck,
   ShieldOff,
   HardDrive,
+  FolderOpen,
 } from 'lucide-react'
-import { downloadBackup, importFromFile } from '../services/migration'
+import { downloadBackup, pickFileForImport, importFromData } from '../services/migration'
+import type { BackupData } from '../services/migration'
 import { listTags } from '../services/tags'
 import db from '../lib/db'
 import type { Tag as TagType } from '../lib/db'
@@ -19,15 +21,17 @@ import useStorageInfo, { formatBytes } from '../hooks/useStorageInfo'
 
 export default function SettingsPage() {
   const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [exportResult, setExportResult] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [pendingData, setPendingData] = useState<BackupData | null>(null)
 
   // 智能曦筑
   const [allTags, setAllTags] = useState<TagType[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const storageInfo = useStorageInfo()
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function SettingsPage() {
     if (selectedTagIds.includes(tagId)) {
       newIds = selectedTagIds.filter(id => id !== tagId)
     } else {
-      if (selectedTagIds.length >= 3) return // 最多 3 个
+      if (selectedTagIds.length >= 3) return
       newIds = [...selectedTagIds, tagId]
     }
     setSelectedTagIds(newIds)
@@ -71,32 +75,48 @@ export default function SettingsPage() {
   // ── 导出 ──────────────────────────────────────────
 
   async function handleExport() {
+    setExporting(true)
+    setExportError(null)
+    setExportResult(null)
     try {
-      await downloadBackup()
-    } catch {
-      setImportError('导出失败，请重试')
+      const path = await downloadBackup()
+      setExportResult(`导出成功！文件路径：${path}`)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '导出失败，请重试')
+    } finally {
+      setExporting(false)
     }
   }
 
   // ── 导入 ──────────────────────────────────────────
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPendingFile(file)
+  async function handleImportClick() {
+    setImporting(true)
     setImportError(null)
-    setShowImportConfirm(true)
+    setImportResult(null)
+
+    try {
+      const data = await pickFileForImport()
+      setPendingData(data)
+      setShowImportConfirm(true)
+    } catch (err) {
+      if (err instanceof Error && err.message !== '已取消') {
+        setImportError(err.message || '无法读取文件，请确认文件格式正确')
+      }
+    } finally {
+      setImporting(false)
+    }
   }
 
   async function handleImportConfirm() {
-    if (!pendingFile) return
+    if (!pendingData) return
     setShowImportConfirm(false)
     setImporting(true)
     setImportError(null)
     setImportResult(null)
 
     try {
-      const result = await importFromFile(pendingFile)
+      const result = await importFromData(pendingData)
       setImportResult(
         `导入成功！笔记 ${result.notes} 条、标签 ${result.tags} 条、链接 ${result.links} 条、图片 ${result.images} 张`,
       )
@@ -105,16 +125,13 @@ export default function SettingsPage() {
       setImportError('导入失败，请确认文件格式正确')
     } finally {
       setImporting(false)
-      setPendingFile(null)
-      // 重置 file input
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      setPendingData(null)
     }
   }
 
   function handleImportCancel() {
     setShowImportConfirm(false)
-    setPendingFile(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    setPendingData(null)
   }
 
   // ── 标签颜色 ──────────────────────────────────────
@@ -192,27 +209,26 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleExport}
+            disabled={exporting || importing}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl
               bg-primary/20 border border-primary-light/30 text-primary-light text-sm font-medium
               hover:bg-primary/30 hover:shadow-[0_0_12px_rgba(124,58,237,0.3)]
-              active:scale-[0.98] transition-all duration-200"
+              active:scale-[0.98] transition-all duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} />
+            {exporting ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Download size={18} />
+            )}
             导出全部数据（JSON）
           </button>
 
           {/* 导入 */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
+            onClick={handleImportClick}
+            disabled={importing || exporting}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl
               bg-bg-input border border-white/10 text-text-secondary text-sm font-medium
               hover:border-white/20 hover:text-text-main
@@ -227,6 +243,34 @@ export default function SettingsPage() {
             从备份文件导入
           </button>
         </div>
+
+        {/* 导出结果 */}
+        {exportResult && (
+          <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+            <CheckCircle2 size={16} className="text-success shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs text-success">{exportResult}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  // Copy path to clipboard
+                  const path = exportResult.replace('导出成功！文件路径：', '')
+                  navigator.clipboard.writeText(path).catch(() => {})
+                }}
+                className="mt-1.5 flex items-center gap-1 text-[10px] text-success/70 hover:text-success transition-colors"
+              >
+                <FolderOpen size={12} />
+                点击复制文件路径
+              </button>
+            </div>
+          </div>
+        )}
+        {exportError && (
+          <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <AlertTriangle size={16} className="text-error shrink-0 mt-0.5" />
+            <p className="text-xs text-error">{exportError}</p>
+          </div>
+        )}
 
         {/* 导入结果 */}
         {importResult && (
@@ -244,7 +288,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ── 导入确认弹窗 ──────────────────────────── */}
-      {showImportConfirm && (
+      {showImportConfirm && pendingData && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="glass rounded-2xl p-6 max-w-sm w-full">
             <div className="flex items-start gap-3 mb-4">
@@ -255,6 +299,9 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-medium text-text-main">确认导入</h3>
                 <p className="text-xs text-text-secondary mt-1">
                   导入将<strong className="text-error">清空当前所有数据</strong>并替换为备份文件中的内容。此操作不可撤销。
+                </p>
+                <p className="text-xs text-text-disabled mt-1">
+                  备份包含 {pendingData.notes.length} 条笔记、{pendingData.tags.length} 个标签
                 </p>
               </div>
             </div>
@@ -288,7 +335,6 @@ export default function SettingsPage() {
           存储状态
         </h2>
 
-        {/* 持久化状态 */}
         <div className="flex items-center gap-3 mb-3">
           {storageInfo.isPersisted === null ? (
             <Loader2 size={16} className="text-text-disabled animate-spin" />
@@ -305,7 +351,6 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* 未保护时的提示 */}
         {storageInfo.isPersisted === false && (
           <div className="mb-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
             <p className="text-xs text-text-secondary leading-relaxed">
@@ -318,7 +363,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* 用量 */}
         {storageInfo.quota > 0 && (
           <div className="text-xs text-text-disabled">
             已用 {formatBytes(storageInfo.usage)} / 配额 {formatBytes(storageInfo.quota)}

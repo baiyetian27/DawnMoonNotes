@@ -125,6 +125,41 @@ cd twa
 - **数据**：WebView 内 IndexedDB 由应用沙箱隔离，卸载 App 时自动清除
 - **离线**：由 PWA Service Worker 提供离线缓存能力
 
+### App 图标
+
+| 文件 | 用途 | 何时查阅 |
+|------|------|----------|
+| `public/pwa-192.svg` | 图标源文件（🌙 emoji + 曦月文字） | 修改图标设计时 |
+| `public/pwa-512.svg` | 图标源文件（高分辨率版） | 生成高分辨率图标时 |
+| `scripts/generate-icons.mjs` | 从 SVG 生成各密度 mipmap PNG | 修改图标后重新生成 |
+| `twa/app/src/main/res/mipmap-{density}/ic_launcher.png` | 5 种密度启动器图标 | APK 打包时自动使用 |
+| `twa/app/src/main/res/mipmap-anydpi-v26/` | 自适应图标（已删除，使用 PNG 直出） | 如需恢复自适应图标时重建 |
+| `twa/app/src/main/res/drawable/ic_launcher_foreground.xml` | 矢量前景（已弃用） | 仅参考 |
+| `twa/app/src/main/res/drawable/ic_launcher_background.xml` | 图标背景色 | 修改背景色时 |
+
+**图标生成命令**：`node scripts/generate-icons.mjs`
+
+**关键注意事项**：
+- Android 矢量图 (`VectorDrawable`) 不支持 emoji 文字渲染 → 图标必须通过 sharp 渲染为 PNG
+- 删除 `mipmap-anydpi-v26/` 后，系统直接使用 mipmap PNG，不经过自适应图标层
+- 修改图标时，先编辑 `public/pwa-512.svg`，再运行生成脚本
+
+### WebView JavaScript 桥接（数据迁移）
+
+**核心概念**：WebView 中纯 DOM API 无法触发文件下载和文件选择，必须通过原生侧 `@JavascriptInterface` 处理。
+
+| 文件 | 用途 |
+|------|------|
+| `MainActivity.java` → `Bridge` 内部类 | `saveBackup()` / `pickBackupFile()` JS 桥接方法 |
+| `src/services/migration.ts` | 导出/导入逻辑，自动检测 WebView 环境走不同路径 |
+| `src/pages/SettingsPage.tsx` | 设置页，数据迁移按钮 UI |
+
+**数据流**：
+- **导出**：`migration.ts` → 检测 `window.Android` → 调用 `Android.saveBackup(json, filename)` → 原生写入 Downloads/曦月笔记/ → 回调通知前端路径
+- **导入**：`migration.ts` → 检测 `window.Android` → 调用 `Android.pickBackupFile()` → 原生打开文件选择器 → 读取文件内容 → 回调传给前端
+
+**WebView 环境检测**：`typeof window !== 'undefined' && 'Android' in window`
+
 ---
 
 ## 技术栈速查

@@ -11,7 +11,24 @@ export interface BackupData {
 }
 
 /**
- * 导出所有数据为 JSON 对象
+ * Check if running inside Android WebView (native bridge available).
+ */
+function isAndroidWebView(): boolean {
+  return typeof window !== 'undefined' && 'Android' in window
+}
+
+// Type declaration for the Android bridge injected by WebView
+declare global {
+  interface Window {
+    Android?: {
+      saveBackup(jsonData: string, filename: string): void
+      pickBackupFile(): void
+    }
+  }
+}
+
+/**
+ * Export all data as a JSON object.
  */
 export async function exportAllData(): Promise<BackupData> {
   const [notes, tags, links, settings, images] = await Promise.all([
@@ -34,17 +51,45 @@ export async function exportAllData(): Promise<BackupData> {
 }
 
 /**
- * 导出并下载 JSON 文件
+ * Generate backup filename with current date.
  */
-export async function downloadBackup(): Promise<void> {
-  const data = await exportAllData()
-  const json = JSON.stringify(data, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-
+function backupFilename(): string {
   const now = new Date()
   const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const filename = `曦月笔记备份_${dateStr}.json`
+  return `曦月笔记备份_${dateStr}.json`
+}
+
+/**
+ * Export and trigger download.
+ *
+ * In Android WebView: calls native bridge to save file to Downloads/曦月笔记/.
+ * In browser: creates a blob URL and programmatically clicks a download link.
+ *
+ * Returns the file path (WebView) or filename (browser).
+ */
+export async function downloadBackup(): Promise<string> {
+  const data = await exportAllData()
+  const json = JSON.stringify(data, null, 2)
+  const filename = backupFilename()
+
+  if (isAndroidWebView()) {
+    // Android WebView — use native bridge to save to Downloads
+    return new Promise<string>((resolve, reject) => {
+      // Set up global callbacks for the native bridge
+      ;(window as unknown as Record<string, unknown>).__xiyueOnExportDone = (savedPath: string) => {
+        resolve(savedPath)
+      }
+      ;(window as unknown as Record<string, unknown>).__xiyueOnExportError = (errorMsg: string) => {
+        reject(new Error(errorMsg))
+      }
+
+      window.Android!.saveBackup(json, filename)
+    })
+  }
+
+  // Browser/standalone PWA — use blob URL download
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
 
   const a = document.createElement('a')
   a.href = url
@@ -53,11 +98,74 @@ export async function downloadBackup(): Promise<void> {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+
+  return filename
 }
 
 /**
- * 从文件导入数据（会清空现有数据后导入）
- * 返回导入的统计信息
+ * Pick a backup file for import.
+ *
+ * In Android WebView: opens native file picker, returns file content.
+ * In browser: returns a Promise that opens the system file picker via hidden <input>.
+ *
+ * Returns the parsed BackupData object.
+ */
+export async function pickFileForImport(): Promise<BackupData> {
+  if (isAndroidWebView()) {
+    // Android WebView — use native file picker
+    const content = await new Promise<string>((resolve, reject) => {
+      ;(window as unknown as Record<string, unknown>).__xiyueOnFilePicked = (fileContent: string) => {
+        resolve(fileContent)
+      }
+      ;(window as unknown as Record<string, unknown>).__xiyueOnFileError = (errorMsg: string) => {
+        reject(new Error(errorMsg))
+      }
+
+      window.Android!.pickBackupFile()
+    })
+
+    const data: BackupData = JSON.parse(content)
+    if (!data.version || !Array.isArray(data.notes)) {
+      throw new Error('无效的备份文件格式')
+    }
+    return data
+  }
+
+  // Browser — use hidden file input
+  return new Promise<BackupData>((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) {
+        reject(new Error('未选择文件'))
+        return
+      }
+
+      try {
+        const text = await file.text()
+        const data: BackupData = JSON.parse(text)
+        if (!data.version || !Array.isArray(data.notes)) {
+          throw new Error('无效的备份文件格式')
+        }
+        resolve(data)
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    // Clean up on cancel (input never fires change)
+    input.oncancel = () => reject(new Error('已取消'))
+
+    input.click()
+  })
+}
+
+/**
+ * Import backup data into the database (clears existing data first).
+ * Returns import statistics.
  */
 export async function importFromFile(file: File): Promise<{
   notes: number
@@ -72,25 +180,38 @@ export async function importFromFile(file: File): Promise<{
     throw new Error('无效的备份文件格式')
   }
 
-  // 清空现有数据
+  return importFromData(data)
+}
+
+/**
+ * Import from already-parsed BackupData object (no File needed).
+ * Used by the WebView picker path.
+ */
+export async function importFromData(data: BackupData): Promise<{
+  notes: number
+  tags: number
+  links: number
+  images: number
+}> {
+  // Clear existing data
   await db.notes.clear()
   await db.tags.clear()
   await db.links.clear()
   await db.settings.clear()
   await db.images.clear()
 
-  // 导入数据（保留原始 ID 以便链接关系一致）
+  // Import data (preserve original IDs for link relationships)
   const noteIds = new Map<number, number>()
   const tagIds = new Map<number, number>()
 
   for (const tag of data.tags) {
-    const id = await db.tags.add(tag as never) as number
+    const id = (await db.tags.add(tag as never)) as number
     tagIds.set((tag as Record<string, number>).id, id)
   }
 
   for (const note of data.notes) {
     const noteData = note as Record<string, unknown>
-    const id = await db.notes.add(noteData as never) as number
+    const id = (await db.notes.add(noteData as never)) as number
     noteIds.set(noteData.id as number, id)
   }
 

@@ -37,5 +37,9 @@ android {
 }
 
 dependencies {
+    // AndroidX Activity for ActivityResultLauncher (file picker)
+    implementation('androidx.activity:activity:1.8.0') {
+        exclude group: 'org.jetbrains.kotlin'
+    }
     // WebView is part of Android SDK — no extra dependencies needed
 }

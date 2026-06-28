@@ -1,37 +1,66 @@
 package com.xiyue.notes;
 
-import android.app.Activity;
+import androidx.activity.ComponentActivity;
+import android.content.ClipData;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
-public class MainActivity extends Activity {
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+public class MainActivity extends ComponentActivity {
 
     private static final String APP_URL = "https://baiyetian27.github.io/DawnMoonNotes/";
     private WebView webView;
     private int navBarInsetBottom = 0;
 
+    // File picker launcher for importing backup
+    private ActivityResultLauncher<String[]> pickFileLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Register file picker BEFORE creating WebView (Bridge may need it)
+        pickFileLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            this::onFilePicked
+        );
 
         // Edge-to-edge display with dark theme
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+: proper edge-to-edge
             getWindow().setDecorFitsSystemWindows(false);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // Android 5-10: draw behind system bars
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         }
 
@@ -67,8 +96,8 @@ public class MainActivity extends Activity {
 
         // Core PWA requirements
         settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);       // Required for IndexedDB
-        settings.setDatabaseEnabled(true);          // Required for IndexedDB
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
 
@@ -79,12 +108,12 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
 
-        // Disable zoom — behave like a native app
+        // Disable zoom
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
 
-        // Allow mixed content (HTTP within HTTPS page)
+        // Allow mixed content
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -93,7 +122,10 @@ public class MainActivity extends Activity {
         settings.setGeolocationEnabled(true);
         settings.setGeolocationDatabasePath(getDir("geolocation", MODE_PRIVATE).getAbsolutePath());
 
-        // WebViewClient — keep all navigation inside the WebView
+        // Register JavaScript bridge
+        webView.addJavascriptInterface(new Bridge(this), "Android");
+
+        // WebViewClient
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -106,7 +138,6 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 view.setBackgroundColor(Color.parseColor("#0F0F1A"));
 
-                // Inject navigation bar safe area as CSS variable for the PWA
                 if (navBarInsetBottom > 0) {
                     float density = getResources().getDisplayMetrics().density;
                     int navBarDp = Math.round(navBarInsetBottom / density);
@@ -130,7 +161,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        // WebChromeClient — handle progress, title
+        // WebChromeClient
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {}
@@ -143,9 +174,158 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Dark background to prevent white flash during load
         webView.setBackgroundColor(Color.parseColor("#0F0F1A"));
     }
+
+    // ── File picker callback ──────────────────────────
+
+    private void onFilePicked(Uri uri) {
+        if (uri == null || webView == null) return;
+
+        try {
+            // Read file content
+            InputStream is = getContentResolver().openInputStream(uri);
+            if (is == null) {
+                notifyPickError("无法读取文件");
+                return;
+            }
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            reader.close();
+            is.close();
+
+            String content = sb.toString();
+
+            // Escape for JavaScript string literal
+            String escaped = content
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+
+            // Pass file content back to JavaScript
+            webView.post(() -> webView.evaluateJavascript(
+                "if(window.__xiyueOnFilePicked) window.__xiyueOnFilePicked('" + escaped + "');",
+                null
+            ));
+
+        } catch (Exception e) {
+            notifyPickError("读取文件失败: " + e.getMessage());
+        }
+    }
+
+    private void notifyPickError(String msg) {
+        webView.post(() -> webView.evaluateJavascript(
+            "if(window.__xiyueOnFileError) window.__xiyueOnFileError('" +
+            msg.replace("'", "\\'") + "');",
+            null
+        ));
+    }
+
+    // ── JavaScript Bridge ─────────────────────────────
+
+    public class Bridge {
+        private final Context context;
+
+        public Bridge(Context context) {
+            this.context = context;
+        }
+
+        /**
+         * Save backup JSON to Downloads/曦月笔记/ directory.
+         * Called from JavaScript: Android.saveBackup(jsonString, filename)
+         */
+        @JavascriptInterface
+        public void saveBackup(String jsonData, String filename) {
+            try {
+                // Create subdirectory in Downloads
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS);
+                File xiyueDir = new File(downloadsDir, "曦月笔记");
+                if (!xiyueDir.exists()) {
+                    xiyueDir.mkdirs();
+                }
+
+                File outFile = new File(xiyueDir, filename);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Android 10+: use MediaStore
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
+                    values.put(MediaStore.Downloads.MIME_TYPE, "application/json");
+                    values.put(MediaStore.Downloads.RELATIVE_PATH, "Download/曦月笔记");
+
+                    Uri uri = context.getContentResolver().insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+
+                    if (uri != null) {
+                        try (FileOutputStream fos = (FileOutputStream)
+                                context.getContentResolver().openOutputStream(uri)) {
+                            if (fos != null) {
+                                fos.write(jsonData.getBytes(StandardCharsets.UTF_8));
+                            }
+                        }
+                    } else {
+                        // Fallback to direct file write
+                        writeFileDirect(outFile, jsonData);
+                    }
+                } else {
+                    // Android 9 and below: direct file write
+                    writeFileDirect(outFile, jsonData);
+                }
+
+                String absPath = outFile.getAbsolutePath();
+                runOnUiThread(() -> {
+                    Toast.makeText(context, "已导出到: " + absPath, Toast.LENGTH_LONG).show();
+                });
+
+                // Notify JavaScript of success with the file path
+                String escaped = absPath.replace("\\", "\\\\").replace("'", "\\'");
+                webView.post(() -> webView.evaluateJavascript(
+                    "if(window.__xiyueOnExportDone) window.__xiyueOnExportDone('" + escaped + "');",
+                    null
+                ));
+
+            } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage() : "未知错误";
+                String escaped = msg.replace("'", "\\'");
+                webView.post(() -> webView.evaluateJavascript(
+                    "if(window.__xiyueOnExportError) window.__xiyueOnExportError('" + escaped + "');",
+                    null
+                ));
+            }
+        }
+
+        private void writeFileDirect(File file, String data) throws Exception {
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                fos.write(data.getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        /**
+         * Open system file picker for .json backup files.
+         * Called from JavaScript: Android.pickBackupFile()
+         */
+        @JavascriptInterface
+        public void pickBackupFile() {
+            // Launch file picker on UI thread
+            runOnUiThread(() -> {
+                try {
+                    pickFileLauncher.launch(new String[]{"application/json"});
+                } catch (Exception e) {
+                    notifyPickError("无法打开文件选择器: " + e.getMessage());
+                }
+            });
+        }
+    }
+
+    // ── Lifecycle ─────────────────────────────────────
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -159,17 +339,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) {
-            webView.onResume();
-        }
+        if (webView != null) webView.onResume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        if (webView != null) {
-            webView.onPause();
-        }
+        if (webView != null) webView.onPause();
     }
 
     @Override
