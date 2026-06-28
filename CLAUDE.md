@@ -129,9 +129,10 @@ cd twa
 
 | 文件 | 用途 | 何时查阅 |
 |------|------|----------|
-| `public/pwa-192.svg` | 图标源文件（🌙 emoji + 曦月文字） | 修改图标设计时 |
-| `public/pwa-512.svg` | 图标源文件（高分辨率版） | 生成高分辨率图标时 |
-| `scripts/generate-icons.mjs` | 从 SVG 生成各密度 mipmap PNG | 修改图标后重新生成 |
+| `public/pwa-192.svg` | PWA 图标（🌙 emoji + 曦月文字，用于 manifest） | 修改 PWA 图标时 |
+| `public/pwa-512.svg` | PWA 图标高分辨率版 | PWA 安装显示 |
+| `public/moon.png` | Android 启动器图标源文件（新月 PNG） | 修改 App 图标时替换 |
+| `scripts/generate-icons.mjs` | 从 `moon.png` 生成各密度 mipmap PNG | 修改 App 图标后重新生成 |
 | `twa/app/src/main/res/mipmap-{density}/ic_launcher.png` | 5 种密度启动器图标 | APK 打包时自动使用 |
 | `twa/app/src/main/res/mipmap-anydpi-v26/` | 自适应图标（已删除，使用 PNG 直出） | 如需恢复自适应图标时重建 |
 | `twa/app/src/main/res/drawable/ic_launcher_foreground.xml` | 矢量前景（已弃用） | 仅参考 |
@@ -142,7 +143,7 @@ cd twa
 **关键注意事项**：
 - Android 矢量图 (`VectorDrawable`) 不支持 emoji 文字渲染 → 图标必须通过 sharp 渲染为 PNG
 - 删除 `mipmap-anydpi-v26/` 后，系统直接使用 mipmap PNG，不经过自适应图标层
-- 修改图标时，先编辑 `public/pwa-512.svg`，再运行生成脚本
+- 修改图标时，先替换 `public/moon.png`，再运行生成脚本
 
 ### WebView JavaScript 桥接（数据迁移）
 
