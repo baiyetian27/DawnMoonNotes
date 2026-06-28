@@ -41,5 +41,8 @@ dependencies {
     implementation('androidx.activity:activity:1.8.0') {
         exclude group: 'org.jetbrains.kotlin'
     }
-    // WebView is part of Android SDK — no extra dependencies needed
+    // AndroidX WebKit for WebViewAssetLoader (local asset serving via https://)
+    implementation('androidx.webkit:webkit:1.9.0') {
+        exclude group: 'org.jetbrains.kotlin'
+    }
 }

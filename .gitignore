@@ -28,6 +28,7 @@ android-sdk/
 android-sdk.zip
 twa/.gradle/
 twa/app/build/
+twa/app/src/main/assets/www/
 twa/gradle-dist/
 twa/gradle.zip
 twa/local.properties

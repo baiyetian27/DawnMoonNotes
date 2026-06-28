@@ -20,6 +20,8 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -28,18 +30,27 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.webkit.WebViewAssetLoader;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends ComponentActivity {
 
-    private static final String APP_URL = "https://baiyetian27.github.io/DawnMoonNotes/";
+    // WebViewAssetLoader serves local assets under this https:// domain,
+    // preserving secure context for IndexedDB, StorageManager, and Service Worker APIs.
+    private static final String LOCAL_DOMAIN = "appassets.androidplatform.net";
+    private static final String APP_URL = "https://" + LOCAL_DOMAIN + "/index.html";
+
     private WebView webView;
+    private WebViewAssetLoader assetLoader;
     private int navBarInsetBottom = 0;
 
     // File picker launcher for importing backup
@@ -70,6 +81,39 @@ public class MainActivity extends ComponentActivity {
             getWindow().setNavigationBarColor(Color.parseColor("#0F0F1A"));
         }
 
+        // Build WebViewAssetLoader to serve APK-bundled assets over https://
+        // - /assets/*  → static files (JS, CSS) handled by built-in AssetsPathHandler
+        // - /*          → root files + SPA fallback: tries exact file, falls back to index.html
+        assetLoader = new WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/", path -> {
+                // Normalize path: remove leading slash, default to index.html
+                String filePath = (path == null || path.isEmpty() || path.equals("/"))
+                    ? "www/index.html"
+                    : "www/" + path;
+
+                // Try to serve the exact file from assets/www/
+                try {
+                    InputStream is = getAssets().open(filePath);
+                    String mime = URLConnection.guessContentTypeFromName(filePath);
+                    if (mime == null) mime = "application/octet-stream";
+                    String encoding = isTextMime(mime) ? "UTF-8" : null;
+                    return new WebResourceResponse(mime, encoding, is);
+                } catch (IOException e) {
+                    // SPA fallback: client-side routes like /settings or /note/abc
+                    // don't exist as files — return index.html and let React Router handle it
+                    try {
+                        InputStream is = getAssets().open("www/index.html");
+                        return new WebResourceResponse("text/html", "UTF-8", is);
+                    } catch (IOException ex) {
+                        return new WebResourceResponse("text/plain", "UTF-8",
+                            404, "Not Found", null,
+                            new ByteArrayInputStream("404 Not Found".getBytes(StandardCharsets.UTF_8)));
+                    }
+                }
+            })
+            .build();
+
         // Create and configure WebView
         webView = new WebView(this);
         configureWebView(webView);
@@ -87,8 +131,20 @@ public class MainActivity extends ComponentActivity {
             });
         }
 
-        // Load the app
+        // Load the app from local assets (no network needed)
         webView.loadUrl(APP_URL);
+    }
+
+    /** Returns true for text-based MIME types that should declare charset=UTF-8. */
+    private static boolean isTextMime(String mime) {
+        return mime != null && (
+            mime.startsWith("text/") ||
+            mime.equals("application/javascript") ||
+            mime.equals("application/json") ||
+            mime.equals("application/xml") ||
+            mime.equals("image/svg+xml") ||
+            mime.equals("application/manifest+json")
+        );
     }
 
     private void configureWebView(WebView webView) {
@@ -98,7 +154,7 @@ public class MainActivity extends ComponentActivity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccess(false);  // tighter: not needed with WebViewAssetLoader
         settings.setAllowContentAccess(true);
 
         // Caching and storage
@@ -113,7 +169,7 @@ public class MainActivity extends ComponentActivity {
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
 
-        // Allow mixed content
+        // Allow mixed content (shouldn't be needed with all-local assets, but harmless)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -128,8 +184,17 @@ public class MainActivity extends ComponentActivity {
         // WebViewClient
         webView.setWebViewClient(new WebViewClient() {
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                view.loadUrl(url);
+            public WebResourceResponse shouldInterceptRequest(WebView view,
+                                                              WebResourceRequest request) {
+                // Let WebViewAssetLoader handle local asset requests
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view,
+                                                    WebResourceRequest request) {
+                // Keep all navigation inside the WebView
+                view.loadUrl(request.getUrl().toString());
                 return true;
             }
 

@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
+  const [persistMsg, setPersistMsg] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [exportResult, setExportResult] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -32,7 +33,7 @@ export default function SettingsPage() {
   // 智能曦筑
   const [allTags, setAllTags] = useState<TagType[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
-  const storageInfo = useStorageInfo()
+  const { loading: storageLoading, requestPersist, ...storageInfo } = useStorageInfo()
 
   useEffect(() => {
     loadData()
@@ -356,10 +357,35 @@ export default function SettingsPage() {
             <p className="text-xs text-text-secondary leading-relaxed">
               ⚠️ 当前存储空间可能被浏览器在存储压力大时自动清理。建议：
             </p>
-            <ul className="text-xs text-text-secondary mt-1.5 space-y-1 list-disc list-inside">
+            <ul className="text-xs text-text-secondary mt-1.5 space-y-1 list-disc list-inside mb-3">
               <li>将本应用<strong className="text-text-main">安装到桌面</strong>（PWA），安装后浏览器会自动保护数据</li>
+              <li>点击下方<strong className="text-text-main">请求保护</strong>按钮主动申请</li>
               <li>定期使用下方<strong className="text-text-main">导出功能</strong>备份数据</li>
             </ul>
+            <button
+              onClick={async () => {
+                setPersistMsg(null)
+                const ok = await requestPersist()
+                setPersistMsg(ok ? '存储保护已激活 ✓' : '请求被拒绝，请尝试安装 PWA 后重试')
+              }}
+              disabled={storageLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg
+                bg-primary/20 border border-primary/30 text-primary-light text-xs
+                font-medium hover:bg-primary/30 active:scale-[0.98]
+                transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {storageLoading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <ShieldCheck size={14} />
+              )}
+              {storageLoading ? '请求中...' : '请求存储保护'}
+            </button>
+            {persistMsg && (
+              <p className={`text-xs mt-2 ${persistMsg.includes('✓') ? 'text-success' : 'text-warning'}`}>
+                {persistMsg}
+              </p>
+            )}
           </div>
         )}
 

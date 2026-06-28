@@ -90,23 +90,32 @@ npm run lint         # 代码检查（如果配置了）
 | `twa/settings.gradle` | Gradle 项目设置 | 修改模块结构时 |
 | `twa/release.keystore` | APK 签名密钥 | 签名 APK 时 |
 | `twa/gradle-dist/` | Gradle 8.2 分发版 | 已内置，无需额外安装 |
+| `twa/app/src/main/assets/www/` | PWA 打包资源（构建产物） | 重新构建 APK 时自动覆盖 |
+| `scripts/copy-dist-to-apk.mjs` | 复制 dist/ 到 Android assets | 修改离线打包流程时 |
 | `public/.well-known/assetlinks.json` | TWA 验证文件（WebView 方案不需要） | 仅参考 |
 | `.github/workflows/deploy.yml` | 前端部署到 GitHub Pages | 修改部署流程时 |
 
 ### Android 构建命令
 
 ```bash
-# 设置 Java 环境（Windows Git Bash）
+# 步骤 1：构建前端并打包到 APK assets 中
+npm run build:apk
+
+# 步骤 2：设置 Java 环境（Windows Git Bash）
 export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.11.10-hotspot"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# 构建 release APK
+# 步骤 3：构建 release APK
 cd twa
 ./gradle-dist/gradle-8.2/bin/gradle assembleRelease
 
 # APK 输出路径
 # twa/app/build/outputs/apk/release/app-release.apk
 ```
+
+`npm run build:apk` 执行两步：
+1. `vite build --base=/` — 以根路径构建（匹配 WebViewAssetLoader 域名）
+2. `node scripts/copy-dist-to-apk.mjs` — 复制 dist/ 到 twa/app/src/main/assets/www/
 
 ### 签名信息
 
@@ -120,10 +129,11 @@ cd twa
 
 ### Android 架构说明
 
-- **方案**：原生 Activity + 系统 WebView，非 TWA
+- **方案**：原生 Activity + 系统 WebView + WebViewAssetLoader，非 TWA
 - **优势**：不依赖 Chrome/Edge 等第三方浏览器，WebView 是 Android 系统内置组件
+- **离线**：PWA 所有资源（HTML/JS/CSS/图标）打包在 APK 的 assets 中，通过 WebViewAssetLoader 以 `https://appassets.androidplatform.net` 域名提供，完全离线可用
+- **安全上下文**：WebViewAssetLoader 使用 https 协议，IndexedDB / StorageManager / Service Worker 等 API 正常工作
 - **数据**：WebView 内 IndexedDB 由应用沙箱隔离，卸载 App 时自动清除
-- **离线**：由 PWA Service Worker 提供离线缓存能力
 
 ### App 图标
 

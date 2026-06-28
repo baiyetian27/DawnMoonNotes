@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:apk": "vite build --base=/ && node scripts/copy-dist-to-apk.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
